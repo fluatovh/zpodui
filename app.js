@@ -3858,18 +3858,7 @@ function openAddComponentWithSpecsModal() {
         return;
     }
     
-    // Check if already added (check appropriate list based on context)
-    if (isAddingComponentForEdit) {
-        if (editProfileComponents.some(c => c.component_uid === componentUid)) {
-            alert('This component is already added');
-            return;
-        }
-    } else {
-        if (newProfileComponents.some(c => c.uid === componentUid)) {
-            alert('This component is already added');
-            return;
-        }
-    }
+    // Allow adding the same component multiple times (with different specs if needed)
     
     // Set component info in modal
     if (componentSpecName) {
@@ -4034,22 +4023,12 @@ function addComponentToProfile() {
     
     if (isAddingComponentForEdit) {
         // Add to edit profile components list
-        // Check if already added
-        if (editProfileComponents.some(c => c.component_uid === componentUid)) {
-            alert('This component is already added');
-            return;
-        }
-        
+        // Allow adding the same component multiple times (with different specs if needed)
         editProfileComponents.push(componentData);
         updateEditProfileComponentsList();
     } else {
         // Add to new profile components list
-        // Check if already added
-        if (newProfileComponents.some(c => c.uid === componentUid)) {
-            alert('This component is already added');
-            return;
-        }
-        
+        // Allow adding the same component multiple times (with different specs if needed)
         newProfileComponents.push(componentData);
         updateNewProfileComponentsList(newProfileComponents);
     }
