@@ -28,9 +28,24 @@ Modern web interface to manage and visualize zPods via the zPodFactory API.
   - **Optimized Display** : Immediate display of main data without waiting for complete DNS loading
 
 ### 📋 Profile Management
-- List of all available profiles
-- Display of the number of components per profile
-- Detail modal with complete component information (UID, Name, CPU, Mem, Disk)
+- **Profile List** : Display of all available profiles with component count
+- **Profile Creation** : Green "+" button to create a new profile with:
+  - Profile name input
+  - Component selection from active components (alphabetically sorted)
+  - Component specification (CPU, RAM, and Disks for ESXi components)
+  - Ability to add multiple components before creating the profile
+- **Profile Editing** : Edit button (✏️) on each profile tile to:
+  - Modify profile name
+  - View all components with their specifications (CPU, RAM, Disks)
+  - Remove components from the profile (local JavaScript, no API call until Save)
+  - Add new components with full specifications (CPU, RAM, Disks for ESXi)
+  - Save changes (DELETE + POST workflow to update the profile)
+- **Profile Deletion** : Delete button (🗑️) on each profile tile
+- **Profile Details** : Detail modal with complete component information:
+  - Component UID and Name
+  - CPU specifications
+  - Memory (RAM) specifications
+  - Disk specifications (properly displayed for ESXi components with multiple disks)
 
 ### 🧩 Component Management
 - List of all components
@@ -193,10 +208,25 @@ The `zpodfactory.conf` file configures:
    - **Add a DNS entry** : Click on the "+" button in the DNS section
    - **Delete a DNS entry** : Click on the trash icon (🗑️) next to the entry
 
-7. **Copy a password** :
+7. **Manage profiles** :
+   - **Create a profile** : Click on the green "+" button on the Profiles page
+     - Enter a profile name
+     - Select components from the dropdown (alphabetically sorted)
+     - For each component, specify CPU, RAM, and Disks (for ESXi components)
+     - Add multiple components before creating the profile
+   - **Edit a profile** : Click on the Edit button (✏️) on a profile tile
+     - Modify the profile name if needed
+     - View all components with their specifications
+     - Remove components by clicking the "×" button (local change, no API call)
+     - Add new components by clicking "Add Component", selecting from the dropdown, and specifying CPU/RAM/Disks
+     - Click "Save Changes" to apply modifications (DELETE + POST workflow)
+   - **Delete a profile** : Click on the Delete button (🗑️) on a profile tile
+   - **View profile details** : Click on a profile card to see complete component information (UID, Name, CPU, Mem, Disk)
+
+8. **Copy a password** :
    - Click on any password field to automatically copy it to the clipboard
 
-8. **Change theme** :
+9. **Change theme** :
    - Click on the theme button (🌙/☀️) in the top right
 
 ## File Structure

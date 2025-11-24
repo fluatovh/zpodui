@@ -292,6 +292,180 @@
             </div>
         </div>
 
+        <!-- Add Profile modal -->
+        <div id="addProfileModal" class="modal hidden">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2>➕ Create a new Profile</h2>
+                    <button class="modal-close" id="closeAddProfileModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="addProfileForm">
+                        <div class="form-group">
+                            <label for="profileName">Profile Name</label>
+                            <input 
+                                type="text" 
+                                id="profileName" 
+                                placeholder="ex: my-profile"
+                                required
+                            />
+                            <small>Unique name to identify the profile</small>
+                        </div>
+                        <div class="form-group" style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-color);">
+                            <label>Components</label>
+                            <div id="addProfileComponentsList" style="margin-bottom: 12px; min-height: 40px; padding: 12px; background: var(--bg-secondary); border-radius: 4px;">
+                                <p style="color: var(--text-secondary); margin: 0;">No components added yet. Click the button below to add components.</p>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <select id="addProfileComponentSelect" style="flex: 1; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);">
+                                    <option value="">Select a component...</option>
+                                </select>
+                                <button type="button" id="addComponentToNewProfileBtn" class="btn btn-success" style="background: var(--success-color);">
+                                    <span class="icon">+</span>
+                                    Add
+                                </button>
+                            </div>
+                            <small>Select active components to add to the profile</small>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="cancelAddProfileBtn">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Create Profile</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Component to Profile modal -->
+        <div id="addComponentToProfileModal" class="modal hidden">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2>➕ Add Component to Profile</h2>
+                    <button class="modal-close" id="closeAddComponentToProfileModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="addComponentToProfileForm">
+                        <div class="form-group">
+                            <label for="profileComponentUid">Component</label>
+                            <select id="profileComponentUid" required>
+                                <option value="">Select a component...</option>
+                            </select>
+                            <small>Active component to add to the profile</small>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="cancelAddComponentToProfileBtn">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Add Component</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Profile modal -->
+        <div id="editProfileModal" class="modal hidden">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2>✏️ Edit Profile</h2>
+                    <button class="modal-close" id="closeEditProfileModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="editProfileForm">
+                        <input type="hidden" id="editProfileId" />
+                        <div class="form-group">
+                            <label for="editProfileName">Profile Name</label>
+                            <input 
+                                type="text" 
+                                id="editProfileName" 
+                                placeholder="ex: my-profile"
+                                required
+                            />
+                            <small>Profile name</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Components in Profile</label>
+                            <div id="editProfileComponentsList" style="margin-top: 12px;">
+                                <!-- Components will be listed here with delete buttons -->
+                            </div>
+                            <div style="margin-top: 12px; display: flex; gap: 8px; align-items: center;">
+                                <select id="editProfileComponentSelect" style="flex: 1; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary); display: none;">
+                                    <option value="">Select a component...</option>
+                                </select>
+                                <button type="button" class="btn btn-success" id="addComponentToEditProfileBtn" style="background: var(--success-color);">
+                                    <span class="icon">+</span>
+                                    Add Component
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="cancelEditProfileBtn">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Component with CPU/RAM modal (for new profile creation) -->
+        <div id="addComponentWithSpecsModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>➕ Add Component</h2>
+                    <button class="modal-close" id="closeAddComponentWithSpecsModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="addComponentWithSpecsForm">
+                        <div class="form-group">
+                            <label>Component</label>
+                            <input type="text" id="componentSpecName" readonly style="background: var(--bg-secondary);" />
+                            <input type="hidden" id="componentSpecUid" />
+                        </div>
+                        <div class="form-group">
+                            <label for="componentSpecVcpu">vCPU</label>
+                            <input 
+                                type="number" 
+                                id="componentSpecVcpu" 
+                                placeholder="ex: 4"
+                                min="1"
+                            />
+                            <small>Number of vCPU (optional)</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="componentSpecVmem">vMem (GB)</label>
+                            <input 
+                                type="number" 
+                                id="componentSpecVmem" 
+                                placeholder="ex: 16"
+                                min="1"
+                            />
+                            <small>Amount of RAM in GB (optional)</small>
+                        </div>
+                        <div class="form-group" id="componentSpecDisksGroup" style="display: none;">
+                            <label>Disks (up to 15)</label>
+                            <div id="componentSpecDisksContainer">
+                                <div class="disk-input-row" style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
+                                    <input 
+                                        type="number" 
+                                        class="disk-size-input" 
+                                        placeholder="Size in GB"
+                                        min="1"
+                                        style="flex: 1; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);"
+                                    />
+                                    <button type="button" class="btn-remove-disk" style="background: #ef4444; color: white; border: none; border-radius: 4px; width: 36px; height: 36px; cursor: pointer; display: none; font-size: 18px; font-weight: bold; line-height: 1; transition: background 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">×</button>
+                                </div>
+                            </div>
+                            <button type="button" id="addSpecDiskBtn" class="btn btn-secondary" style="margin-top: 8px;">+ Add a disk</button>
+                            <small>Disk sizes in GB (optional, up to 15 disks)</small>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="cancelAddComponentWithSpecsBtn">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Add Component</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+
         <!-- Configuration modal -->
         <div id="configModal" class="modal hidden">
             <div class="modal-content">
@@ -388,6 +562,10 @@
         <!-- Profiles Page -->
         <div id="page-profiles" class="page-content hidden">
             <div class="controls">
+                <button id="addProfileBtn" class="btn btn-success" style="background: var(--success-color);">
+                    <span class="icon">+</span>
+                    Add a Profile
+                </button>
                 <button id="refreshProfilesBtn" class="btn btn-primary">
                     <span class="icon">🔄</span>
                     Refresh

@@ -73,6 +73,40 @@ const zpodEndpointSelect = document.getElementById('zpodEndpoint');
 const zpodSuccessModal = document.getElementById('zpodSuccessModal');
 const goToDashboardZpodBtn = document.getElementById('goToDashboardZpodBtn');
 const stayOnZpodPageBtn = document.getElementById('stayOnZpodPageBtn');
+const addProfileBtn = document.getElementById('addProfileBtn');
+const addProfileModal = document.getElementById('addProfileModal');
+const closeAddProfileModalBtn = document.getElementById('closeAddProfileModal');
+const cancelAddProfileBtn = document.getElementById('cancelAddProfileBtn');
+const addProfileForm = document.getElementById('addProfileForm');
+const profileNameInput = document.getElementById('profileName');
+const addComponentToProfileBtn = document.getElementById('addComponentToProfileBtn');
+const addComponentToProfileModal = document.getElementById('addComponentToProfileModal');
+const closeAddComponentToProfileModalBtn = document.getElementById('closeAddComponentToProfileModal');
+const cancelAddComponentToProfileBtn = document.getElementById('cancelAddComponentToProfileBtn');
+const addComponentToProfileForm = document.getElementById('addComponentToProfileForm');
+const profileComponentUidSelect = document.getElementById('profileComponentUid');
+const addProfileComponentSelect = document.getElementById('addProfileComponentSelect');
+const addComponentToNewProfileBtn = document.getElementById('addComponentToNewProfileBtn');
+const editProfileModal = document.getElementById('editProfileModal');
+const closeEditProfileModalBtn = document.getElementById('closeEditProfileModal');
+const cancelEditProfileBtn = document.getElementById('cancelEditProfileBtn');
+const editProfileForm = document.getElementById('editProfileForm');
+const editProfileIdInput = document.getElementById('editProfileId');
+const editProfileNameInput = document.getElementById('editProfileName');
+const editProfileComponentsList = document.getElementById('editProfileComponentsList');
+const addComponentToEditProfileBtn = document.getElementById('addComponentToEditProfileBtn');
+const editProfileComponentSelect = document.getElementById('editProfileComponentSelect');
+const addComponentWithSpecsModal = document.getElementById('addComponentWithSpecsModal');
+const closeAddComponentWithSpecsModalBtn = document.getElementById('closeAddComponentWithSpecsModal');
+const cancelAddComponentWithSpecsBtn = document.getElementById('cancelAddComponentWithSpecsBtn');
+const addComponentWithSpecsForm = document.getElementById('addComponentWithSpecsForm');
+const componentSpecName = document.getElementById('componentSpecName');
+const componentSpecUid = document.getElementById('componentSpecUid');
+const componentSpecVcpu = document.getElementById('componentSpecVcpu');
+const componentSpecVmem = document.getElementById('componentSpecVmem');
+const componentSpecDisksGroup = document.getElementById('componentSpecDisksGroup');
+const componentSpecDisksContainer = document.getElementById('componentSpecDisksContainer');
+const addSpecDiskBtn = document.getElementById('addSpecDiskBtn');
 
 // Load configuration exclusively from config.js (endpoint only, token is server-side)
 function loadConfig() {
@@ -434,6 +468,151 @@ async function deleteZpod(zpodId) {
     }
 }
 
+// Function to create a profile
+async function createProfile(profileName, components = []) {
+    try {
+        // Build profile array from components list
+        // Components can be either strings (UIDs) or objects with UID and optional specs
+        const profileArray = components.map(comp => {
+            if (typeof comp === 'string') {
+                // Simple UID string
+                return {
+                    component_uid: comp
+                };
+            } else {
+                // Object with UID and optional specs
+                const componentData = {
+                    component_uid: comp.uid || comp.component_uid
+                };
+                if (comp.vcpu) {
+                    componentData.vcpu = comp.vcpu;
+                }
+                if (comp.vmem) {
+                    componentData.vmem = comp.vmem;
+                }
+                if (comp.vdisks && Array.isArray(comp.vdisks) && comp.vdisks.length > 0) {
+                    componentData.vdisks = comp.vdisks;
+                }
+                return componentData;
+            }
+        });
+        
+        const apiUrl = getApiUrl('/profiles');
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                // access_token is handled server-side by proxy.php from config.js
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: profileName,
+                profile: profileArray
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Error ${response.status}: ${errorText}`);
+        }
+
+        const result = await response.json();
+        return result;
+    } catch (error) {
+        console.error('Error creating profile:', error);
+        throw error;
+    }
+}
+
+// Function to delete a profile
+async function deleteProfile(profileId) {
+    try {
+        const apiUrl = getApiUrl(`/profiles/${profileId}`);
+        const response = await fetch(apiUrl, {
+            method: 'DELETE',
+            headers: {
+                // access_token is handled server-side by proxy.php from config.js
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Error ${response.status}: ${errorText}`);
+        }
+
+        return true;
+    } catch (error) {
+        console.error('Error deleting profile:', error);
+        throw error;
+    }
+}
+
+// Function to add a component to a profile
+async function addComponentToProfile(profileId, componentUid) {
+    try {
+        // First, get the current profile
+        const getUrl = getApiUrl(`/profiles/${profileId}`);
+        const getResponse = await fetch(getUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!getResponse.ok) {
+            throw new Error(`Error fetching profile: ${getResponse.status}`);
+        }
+
+        const profile = await getResponse.json();
+        
+        // Add the component to the profile array
+        const updatedProfile = profile.profile || [];
+        updatedProfile.push({
+            component_uid: componentUid
+        });
+
+        // Update the profile - try PATCH first, then PUT
+        const updateUrl = getApiUrl(`/profiles/${profileId}`);
+        let updateResponse = await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: profile.name,
+                profile: updatedProfile
+            })
+        });
+
+        // If PATCH doesn't work (405), try PUT
+        if (!updateResponse.ok && updateResponse.status === 405) {
+            console.log('PATCH not supported, trying PUT...');
+            updateResponse = await fetch(updateUrl, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: profile.name,
+                    profile: updatedProfile
+                })
+            });
+        }
+
+        if (!updateResponse.ok) {
+            const errorText = await updateResponse.text();
+            throw new Error(`Error ${updateResponse.status}: ${errorText}`);
+        }
+
+        const result = await updateResponse.json();
+        return result;
+    } catch (error) {
+        console.error('Error adding component to profile:', error);
+        throw error;
+    }
+}
+
+
 // Functions to fetch data for each page
 async function fetchProfiles() {
     try {
@@ -593,23 +772,43 @@ function extractProfileComponents(profileData) {
             // It's an array of components with details
             item.forEach(comp => {
                 if (comp && typeof comp === 'object') {
+                    // Handle vdisks array for ESXi components
+                    let diskDisplay = 'N/A';
+                    if (comp.vdisks && Array.isArray(comp.vdisks) && comp.vdisks.length > 0) {
+                        diskDisplay = comp.vdisks.join(', ') + ' GB';
+                    } else if (comp.disk) {
+                        diskDisplay = comp.disk + ' GB';
+                    } else if (comp.vdisk) {
+                        diskDisplay = comp.vdisk + ' GB';
+                    }
+                    
                     components.push({
                         uid: comp.component_uid || 'N/A',
                         name: comp.hostname || comp.component_uid || 'N/A',
                         cpu: comp.vcpu || comp.cpu || 'N/A',
                         mem: comp.vmem || comp.mem || 'N/A',
-                        disk: comp.disk || comp.vdisk || 'N/A'
+                        disk: diskDisplay
                     });
                 }
             });
         } else if (item && typeof item === 'object' && item.component_uid) {
             // It's a simple component
+            // Handle vdisks array for ESXi components
+            let diskDisplay = 'N/A';
+            if (item.vdisks && Array.isArray(item.vdisks) && item.vdisks.length > 0) {
+                diskDisplay = item.vdisks.join(', ') + ' GB';
+            } else if (item.disk) {
+                diskDisplay = item.disk + ' GB';
+            } else if (item.vdisk) {
+                diskDisplay = item.vdisk + ' GB';
+            }
+            
             components.push({
                 uid: item.component_uid,
                 name: item.component_uid,
                 cpu: item.vcpu || item.cpu || 'N/A',
                 mem: item.vmem || item.mem || 'N/A',
-                disk: item.disk || item.vdisk || 'N/A'
+                disk: diskDisplay
             });
         }
     });
@@ -664,7 +863,7 @@ function showProfileDetails(profile) {
                                 <td>${escapeHtml(comp.name)}</td>
                                 <td>${escapeHtml(comp.cpu)}</td>
                                 <td>${escapeHtml(comp.mem)}${comp.mem !== 'N/A' ? ' GB' : ''}</td>
-                                <td>${escapeHtml(comp.disk)}${comp.disk !== 'N/A' ? ' GB' : ''}</td>
+                                <td>${escapeHtml(comp.disk)}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -690,20 +889,28 @@ function displayProfiles(profiles) {
         const componentCount = countProfileComponents(profile.profile);
         
         return `
-            <div class="card profile-card" data-profile-id="${profile.id}" style="cursor: pointer;">
+            <div class="card profile-card" data-profile-id="${profile.id}">
                 <div class="card-header">
                     <div>
                         <div class="card-title">${escapeHtml(profile.name)}</div>
                         <div class="card-subtitle">ID: ${profile.id}</div>
                     </div>
+                    <div class="card-actions" style="display: flex; gap: 8px;">
+                        <button class="btn-edit-profile" data-profile-id="${profile.id}" data-profile-name="${escapeHtml(profile.name)}" title="Edit profile" style="background: var(--primary-color); color: white; border: none; border-radius: 6px; width: 32px; height: 32px; font-size: 16px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s ease; box-shadow: var(--shadow);">
+                            ✏️
+                        </button>
+                        <button class="btn-delete-profile" data-profile-id="${profile.id}" data-profile-name="${escapeHtml(profile.name)}" title="Delete profile" style="background: #ef4444; color: white; border: none; border-radius: 6px; width: 32px; height: 32px; font-size: 16px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s ease; box-shadow: var(--shadow);">
+                            🗑️
+                        </button>
+                    </div>
                 </div>
-                    <div class="card-info">
+                <div class="card-info" style="cursor: pointer;">
                     <div class="info-item">
                         <span class="info-label">📦 Components:</span>
                         <span class="info-value">${componentCount}</span>
                     </div>
                 </div>
-                <div class="card-details">
+                <div class="card-details" style="cursor: pointer;">
                     <div class="details-title">📊 Details</div>
                     <div class="details-grid">
                         <div class="detail-item">
@@ -720,16 +927,309 @@ function displayProfiles(profiles) {
         `;
     }).join('');
     
-    // Add click events on profile cards
+    // Add click events on profile cards (excluding buttons)
     container.querySelectorAll('.profile-card').forEach(card => {
-        card.addEventListener('click', () => {
-            const profileId = parseInt(card.dataset.profileId);
-            const profile = profiles.find(p => p.id === profileId);
-            if (profile) {
-                showProfileDetails(profile);
+        const cardInfo = card.querySelector('.card-info');
+        const cardDetails = card.querySelector('.card-details');
+        
+        if (cardInfo) {
+            cardInfo.addEventListener('click', () => {
+                const profileId = parseInt(card.dataset.profileId);
+                const profile = profiles.find(p => p.id === profileId);
+                if (profile) {
+                    showProfileDetails(profile);
+                }
+            });
+        }
+        
+        if (cardDetails) {
+            cardDetails.addEventListener('click', () => {
+                const profileId = parseInt(card.dataset.profileId);
+                const profile = profiles.find(p => p.id === profileId);
+                if (profile) {
+                    showProfileDetails(profile);
+                }
+            });
+        }
+    });
+    
+    // Initialize delete and edit buttons
+    initDeleteProfileButtons();
+    initEditProfileButtons();
+}
+
+// Function to initialize edit profile buttons
+function initEditProfileButtons() {
+    const editButtons = document.querySelectorAll('.btn-edit-profile');
+    editButtons.forEach(button => {
+        button.addEventListener('click', async (e) => {
+            e.stopPropagation(); // Prevent card click
+            
+            const profileId = parseInt(button.dataset.profileId);
+            
+            if (!profileId) {
+                alert('Profile ID not found');
+                return;
+            }
+            
+            // Fetch profile details
+            try {
+                const apiUrl = getApiUrl(`/profiles/${profileId}`);
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}`);
+                }
+
+                const profile = await response.json();
+                openEditProfileModal(profile);
+            } catch (error) {
+                alert(`Error loading profile: ${error.message}`);
             }
         });
     });
+}
+
+// Store components for editing (local JavaScript array, not sent to API until Save)
+let editProfileComponents = [];
+// Track if we're adding component for edit or create
+let isAddingComponentForEdit = false;
+
+// Function to open edit profile modal
+function openEditProfileModal(profile) {
+    if (!editProfileModal || !editProfileNameInput || !editProfileIdInput || !editProfileComponentsList) {
+        return;
+    }
+    
+    // Set profile data
+    editProfileIdInput.value = profile.id;
+    editProfileNameInput.value = profile.name || '';
+    
+    // Extract all components with their full properties
+    editProfileComponents = [];
+    const profileData = profile.profile || [];
+    
+    // Flatten the profile array to get all components
+    profileData.forEach(item => {
+        if (Array.isArray(item)) {
+            item.forEach(comp => {
+                if (comp && typeof comp === 'object' && comp.component_uid) {
+                    editProfileComponents.push(JSON.parse(JSON.stringify(comp)));
+                }
+            });
+        } else if (item && typeof item === 'object' && item.component_uid) {
+            editProfileComponents.push(JSON.parse(JSON.stringify(item)));
+        }
+    });
+    
+    // Display components
+    updateEditProfileComponentsList();
+    
+    // Show modal
+    editProfileModal.classList.remove('hidden');
+}
+
+// Function to update the components list display in edit profile modal
+function updateEditProfileComponentsList() {
+    if (!editProfileComponentsList) return;
+    
+    if (editProfileComponents.length === 0) {
+        editProfileComponentsList.innerHTML = '<p style="color: var(--text-secondary);">No components in this profile.</p>';
+    } else {
+        editProfileComponentsList.innerHTML = editProfileComponents.map((comp, index) => {
+            const isEsxi = comp.component_uid && (comp.component_uid.toLowerCase().includes('esxi') || comp.component_uid.toLowerCase().startsWith('esxi'));
+            
+            // Build specs display
+            const specsParts = [];
+            if (comp.vcpu) {
+                specsParts.push(`<span style="color: var(--text-primary);"><strong>CPU:</strong> ${comp.vcpu}</span>`);
+            }
+            if (comp.vmem) {
+                specsParts.push(`<span style="color: var(--text-primary);"><strong>RAM:</strong> ${comp.vmem} GB</span>`);
+            }
+            if (isEsxi && comp.vdisks && Array.isArray(comp.vdisks) && comp.vdisks.length > 0) {
+                specsParts.push(`<span style="color: var(--text-primary);"><strong>Disks:</strong> ${comp.vdisks.join(', ')} GB</span>`);
+            }
+            
+            const specsHtml = specsParts.length > 0 
+                ? `<div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.9em;">${specsParts.join('')}</div>`
+                : '';
+            
+            return `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 12px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 8px;">
+                <div style="flex: 1;">
+                    <div>
+                        <strong style="color: var(--text-primary);">${escapeHtml(comp.component_uid)}</strong>
+                    </div>
+                    ${specsHtml}
+                </div>
+                <button type="button" class="btn-remove-edit-component" data-index="${index}" style="background: #ef4444; color: white; border: none; border-radius: 4px; width: 28px; height: 28px; cursor: pointer; font-size: 18px; font-weight: bold; line-height: 1; margin-left: 12px; flex-shrink: 0; transition: background 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">×</button>
+            </div>
+        `;
+        }).join('');
+        
+        // Add event listeners to remove buttons
+        editProfileComponentsList.querySelectorAll('.btn-remove-edit-component').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const index = parseInt(btn.dataset.index);
+                removeComponentFromEditList(index);
+            });
+        });
+    }
+}
+
+// Function to remove component from edit list (JavaScript only, no API call)
+function removeComponentFromEditList(index) {
+    if (index >= 0 && index < editProfileComponents.length) {
+        editProfileComponents.splice(index, 1);
+        updateEditProfileComponentsList();
+    }
+}
+
+// Function to close edit profile modal
+function closeEditProfileModal() {
+    if (editProfileModal) {
+        editProfileModal.classList.add('hidden');
+    }
+    // Reset components list
+    editProfileComponents = [];
+    if (editProfileComponentsList) {
+        editProfileComponentsList.innerHTML = '';
+    }
+    // Reset edit mode flag
+    isAddingComponentForEdit = false;
+}
+
+// Function to open add component modal for edit profile
+async function openAddComponentForEditProfile() {
+    // Set context to edit mode
+    isAddingComponentForEdit = true;
+    
+    // Load active components
+    try {
+        const activeComponents = await fetchActiveComponents();
+        
+        // Use the edit profile component select
+        if (editProfileComponentSelect) {
+            editProfileComponentSelect.innerHTML = '<option value="">Select a component...</option>';
+            
+            const sortedComponents = activeComponents.sort((a, b) => {
+                const nameA = (a.component_name || a.uid || '').toLowerCase();
+                const nameB = (b.component_name || b.uid || '').toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+            
+            sortedComponents.forEach(comp => {
+                const option = document.createElement('option');
+                option.value = comp.uid || comp.component_uid || '';
+                option.textContent = `${comp.component_name || comp.uid || comp.component_uid || 'Unknown'} (${comp.uid || comp.component_uid || ''})`;
+                editProfileComponentSelect.appendChild(option);
+            });
+            
+            // Show the select dropdown
+            editProfileComponentSelect.style.display = 'block';
+        }
+    } catch (error) {
+        alert(`Error loading components: ${error.message}`);
+        isAddingComponentForEdit = false;
+    }
+}
+
+// Function to initialize delete profile buttons
+function initDeleteProfileButtons() {
+    const deleteButtons = document.querySelectorAll('.btn-delete-profile');
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', async (e) => {
+            e.stopPropagation(); // Prevent card click
+            
+            const profileId = parseInt(button.dataset.profileId);
+            const profileName = button.dataset.profileName || `Profile #${profileId}`;
+            
+            if (!confirm(`Are you sure you want to delete the profile "${profileName}"? This action cannot be undone.`)) {
+                return;
+            }
+            
+            // Disable button during deletion
+            button.disabled = true;
+            button.innerHTML = '⏳';
+            
+            try {
+                await deleteProfile(profileId);
+                
+                // Reload profiles list
+                await fetchProfiles();
+            } catch (error) {
+                alert(`Error deleting profile: ${error.message}`);
+                // Re-enable button on error
+                button.disabled = false;
+                button.innerHTML = '🗑️';
+            }
+        });
+    });
+}
+
+
+// Function to initialize add profile button
+function initAddProfileButton() {
+    if (!addProfileBtn) return;
+
+    addProfileBtn.addEventListener('click', async () => {
+        // Reset form
+        if (addProfileForm) {
+            addProfileForm.reset();
+        }
+        
+        // Clear components list
+        const componentsList = document.getElementById('addProfileComponentsList');
+        if (componentsList) {
+            componentsList.innerHTML = '<p style="color: var(--text-secondary); margin: 0;">No components added yet. Click the button below to add components.</p>';
+        }
+        
+        // Load active components into select
+        await loadActiveComponentsIntoSelect();
+        
+        // Show modal
+        if (addProfileModal) {
+            addProfileModal.classList.remove('hidden');
+        }
+    });
+}
+
+
+// Function to close add profile modal
+function closeAddProfileModal() {
+    if (addProfileModal) {
+        addProfileModal.classList.add('hidden');
+        // Reset form
+        if (addProfileForm) {
+            addProfileForm.reset();
+            delete addProfileForm.dataset.profileId;
+        }
+        // Reset components list
+        newProfileComponents = [];
+        updateNewProfileComponentsList([]);
+        // Hide components section
+        const componentsSection = document.getElementById('addProfileComponentsSection');
+        if (componentsSection) {
+            componentsSection.style.display = 'none';
+        }
+        // Reload profiles list
+        if (currentPage === 'profiles') {
+            fetchProfiles();
+        }
+    }
+}
+
+// Function to close add component to profile modal
+function closeAddComponentToProfileModal() {
+    if (addComponentToProfileModal) {
+        addComponentToProfileModal.classList.add('hidden');
+    }
 }
 
 function displayComponents(components) {
@@ -3222,6 +3722,7 @@ document.addEventListener('keydown', (e) => {
     loadConfigIntoForm();
     updateDashboardLink();
     initAddZpodButton();
+    initAddProfileButton();
     
     // Load default page (zpods)
     navigateToPage('zpods');
@@ -3231,4 +3732,757 @@ document.addEventListener('keydown', (e) => {
         loadPageData(currentPage);
     }, 30000);
 })();
+
+// Store components for new profile (before creation)
+let newProfileComponents = [];
+
+// Function to load active components into the select dropdown
+async function loadActiveComponentsIntoSelect() {
+    if (!addProfileComponentSelect) return;
+    
+    try {
+        const apiUrl = getApiUrl('/components');
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}`);
+        }
+        
+        const allComponents = await response.json();
+        // Filter only active components
+        const activeComponents = allComponents.filter(comp => {
+            const status = (comp.status || '').toUpperCase();
+            return status === 'ACTIVE';
+        });
+        
+        // Sort alphabetically by component_name
+        activeComponents.sort((a, b) => {
+            const nameA = (a.component_name || '').toLowerCase();
+            const nameB = (b.component_name || '').toLowerCase();
+            return nameA.localeCompare(nameB);
+        });
+        
+        // Clear existing options
+        addProfileComponentSelect.innerHTML = '<option value="">Select a component...</option>';
+        
+        // Add components to select
+        activeComponents.forEach(comp => {
+            const option = document.createElement('option');
+            option.value = comp.component_uid;
+            const componentName = comp.component_name || comp.component_uid;
+            option.textContent = `${componentName} (${comp.component_uid})`;
+            addProfileComponentSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading components:', error);
+        addProfileComponentSelect.innerHTML = '<option value="">Error loading components</option>';
+    }
+}
+
+// Function to update the components list display in add profile modal
+function updateNewProfileComponentsList(components) {
+    const componentsList = document.getElementById('addProfileComponentsList');
+    if (!componentsList) return;
+    
+    if (components.length === 0) {
+        componentsList.innerHTML = '<p style="color: var(--text-secondary); margin: 0;">No components added yet. Click the button below to add components.</p>';
+    } else {
+        componentsList.innerHTML = components.map((comp, index) => {
+            const isEsxi = comp.uid && (comp.uid.toLowerCase().includes('esxi') || comp.uid.toLowerCase().startsWith('esxi'));
+            
+            // Build specs display
+            const specsParts = [];
+            if (comp.vcpu) {
+                specsParts.push(`<span style="color: var(--text-primary);"><strong>CPU:</strong> ${comp.vcpu}</span>`);
+            }
+            if (comp.vmem) {
+                specsParts.push(`<span style="color: var(--text-primary);"><strong>RAM:</strong> ${comp.vmem} GB</span>`);
+            }
+            if (isEsxi && comp.vdisks && Array.isArray(comp.vdisks) && comp.vdisks.length > 0) {
+                specsParts.push(`<span style="color: var(--text-primary);"><strong>Disks:</strong> ${comp.vdisks.join(', ')} GB</span>`);
+            }
+            
+            const specsHtml = specsParts.length > 0 
+                ? `<div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.9em;">${specsParts.join('')}</div>`
+                : '';
+            
+            return `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 12px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 8px;">
+                <div style="flex: 1;">
+                    <div>
+                        <strong style="color: var(--text-primary);">${escapeHtml(comp.name || comp.uid)}</strong>
+                        <span style="color: var(--text-secondary); font-size: 0.9em; margin-left: 4px;">(${escapeHtml(comp.uid)})</span>
+                    </div>
+                    ${specsHtml}
+                </div>
+                <button type="button" class="btn-remove-component" data-index="${index}" style="background: #ef4444; color: white; border: none; border-radius: 4px; width: 28px; height: 28px; cursor: pointer; font-size: 18px; font-weight: bold; line-height: 1; margin-left: 12px; flex-shrink: 0; transition: background 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">×</button>
+            </div>
+        `;
+        }).join('');
+        
+        // Add event listeners to remove buttons
+        componentsList.querySelectorAll('.btn-remove-component').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const index = parseInt(btn.dataset.index);
+                removeComponentFromNewProfile(index);
+            });
+        });
+    }
+}
+
+// Function to open add component with specs modal (for new profile creation or edit)
+function openAddComponentWithSpecsModal() {
+    // Get component UID from the appropriate select based on context
+    let componentUid = null;
+    let componentName = '';
+    
+    if (isAddingComponentForEdit && editProfileComponentSelect) {
+        componentUid = editProfileComponentSelect.value;
+        if (editProfileComponentSelect.selectedIndex >= 0) {
+            componentName = editProfileComponentSelect.options[editProfileComponentSelect.selectedIndex].text;
+        }
+    } else if (addProfileComponentSelect) {
+        componentUid = addProfileComponentSelect.value;
+        if (addProfileComponentSelect.selectedIndex >= 0) {
+            componentName = addProfileComponentSelect.options[addProfileComponentSelect.selectedIndex].text;
+        }
+    }
+    
+    if (!componentUid) {
+        alert('Please select a component');
+        return;
+    }
+    
+    // Check if already added (check appropriate list based on context)
+    if (isAddingComponentForEdit) {
+        if (editProfileComponents.some(c => c.component_uid === componentUid)) {
+            alert('This component is already added');
+            return;
+        }
+    } else {
+        if (newProfileComponents.some(c => c.uid === componentUid)) {
+            alert('This component is already added');
+            return;
+        }
+    }
+    
+    // Set component info in modal
+    if (componentSpecName) {
+        componentSpecName.value = componentName;
+    }
+    if (componentSpecUid) {
+        componentSpecUid.value = componentUid;
+    }
+    
+    // Reset CPU and RAM fields
+    if (componentSpecVcpu) {
+        componentSpecVcpu.value = '';
+    }
+    if (componentSpecVmem) {
+        componentSpecVmem.value = '';
+    }
+    
+    // Check if component is ESXi and show/hide disks section
+    const isEsxi = componentUid && (componentUid.toLowerCase().includes('esxi') || componentUid.toLowerCase().startsWith('esxi'));
+    if (componentSpecDisksGroup) {
+        componentSpecDisksGroup.style.display = isEsxi ? 'block' : 'none';
+    }
+    
+    // Reset disks container
+    if (componentSpecDisksContainer) {
+        componentSpecDisksContainer.innerHTML = `
+            <div class="disk-input-row" style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
+                <input 
+                    type="number" 
+                    class="disk-size-input" 
+                    placeholder="Size in GB"
+                    min="1"
+                    style="flex: 1; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);"
+                />
+                <button type="button" class="btn-remove-disk" style="background: #ef4444; color: white; border: none; border-radius: 4px; width: 36px; height: 36px; cursor: pointer; display: none; font-size: 18px; font-weight: bold; line-height: 1; transition: background 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">×</button>
+            </div>
+        `;
+        updateSpecRemoveDiskButtons();
+    }
+    
+    // Show modal
+    if (addComponentWithSpecsModal) {
+        addComponentWithSpecsModal.classList.remove('hidden');
+    }
+}
+
+// Function to close add component with specs modal
+function closeAddComponentWithSpecsModal() {
+    if (addComponentWithSpecsModal) {
+        addComponentWithSpecsModal.classList.add('hidden');
+    }
+    if (addComponentWithSpecsForm) {
+        addComponentWithSpecsForm.reset();
+    }
+    // Reset disks container
+    if (componentSpecDisksContainer) {
+        componentSpecDisksContainer.innerHTML = `
+            <div class="disk-input-row" style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
+                <input 
+                    type="number" 
+                    class="disk-size-input" 
+                    placeholder="Size in GB"
+                    min="1"
+                    style="flex: 1; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);"
+                />
+                <button type="button" class="btn-remove-disk" style="background: #ef4444; color: white; border: none; border-radius: 4px; width: 36px; height: 36px; cursor: pointer; display: none; font-size: 18px; font-weight: bold; line-height: 1; transition: background 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">×</button>
+            </div>
+        `;
+    }
+}
+
+// Function to update visibility of disk delete buttons in spec modal
+function updateSpecRemoveDiskButtons() {
+    if (!componentSpecDisksContainer) return;
+    const diskRows = componentSpecDisksContainer.querySelectorAll('.disk-input-row');
+    diskRows.forEach((row) => {
+        const removeBtn = row.querySelector('.btn-remove-disk');
+        if (removeBtn) {
+            removeBtn.style.display = diskRows.length > 1 ? 'inline-flex' : 'none';
+        }
+    });
+}
+
+// Function to open add component with specs modal for edit profile
+async function openAddComponentWithSpecsModalForEdit() {
+    // Set context to edit mode
+    isAddingComponentForEdit = true;
+    
+    // Load active components into a temporary select (we'll reuse the same modal)
+    try {
+        const activeComponents = await fetchActiveComponents();
+        
+        // Create a temporary select element or use existing one
+        // We'll use the same select but check context when submitting
+        if (addProfileComponentSelect) {
+            addProfileComponentSelect.innerHTML = '<option value="">Select a component...</option>';
+            
+            const sortedComponents = activeComponents.sort((a, b) => {
+                const nameA = (a.component_name || a.uid || '').toLowerCase();
+                const nameB = (b.component_name || b.uid || '').toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+            
+            sortedComponents.forEach(comp => {
+                const option = document.createElement('option');
+                option.value = comp.uid || comp.component_uid || '';
+                option.textContent = `${comp.component_name || comp.uid || comp.component_uid || 'Unknown'} (${comp.uid || comp.component_uid || ''})`;
+                addProfileComponentSelect.appendChild(option);
+            });
+        }
+        
+        // Show the component selection first (we'll need to modify the flow)
+        // For now, let's show the modal directly and let user select
+        if (addComponentWithSpecsModal) {
+            // We'll need to show a select first, then the specs modal
+            // Let's create a simpler flow: show select in edit modal, then specs modal
+        }
+    } catch (error) {
+        alert(`Error loading components: ${error.message}`);
+    }
+}
+
+// Function to add component to profile (handles both new and edit)
+function addComponentToProfile() {
+    if (!componentSpecUid || !componentSpecUid.value) {
+        return;
+    }
+    
+    const componentUid = componentSpecUid.value;
+    const componentName = componentSpecName ? componentSpecName.value : componentUid;
+    const vcpu = componentSpecVcpu && componentSpecVcpu.value ? parseInt(componentSpecVcpu.value) : null;
+    const vmem = componentSpecVmem && componentSpecVmem.value ? parseInt(componentSpecVmem.value) : null;
+    
+    // Get disk sizes if ESXi
+    const vdisks = [];
+    if (componentSpecDisksContainer) {
+        const diskInputs = componentSpecDisksContainer.querySelectorAll('.disk-size-input');
+        diskInputs.forEach(input => {
+            const size = parseInt(input.value);
+            if (size && size > 0) {
+                vdisks.push(size);
+            }
+        });
+    }
+    
+    // Build component data
+    const componentData = {
+        uid: componentUid,
+        name: componentName,
+        component_uid: componentUid  // For edit mode compatibility
+    };
+    
+    if (vcpu) {
+        componentData.vcpu = vcpu;
+    }
+    if (vmem) {
+        componentData.vmem = vmem;
+    }
+    if (vdisks.length > 0) {
+        componentData.vdisks = vdisks;
+    }
+    
+    if (isAddingComponentForEdit) {
+        // Add to edit profile components list
+        // Check if already added
+        if (editProfileComponents.some(c => c.component_uid === componentUid)) {
+            alert('This component is already added');
+            return;
+        }
+        
+        editProfileComponents.push(componentData);
+        updateEditProfileComponentsList();
+    } else {
+        // Add to new profile components list
+        // Check if already added
+        if (newProfileComponents.some(c => c.uid === componentUid)) {
+            alert('This component is already added');
+            return;
+        }
+        
+        newProfileComponents.push(componentData);
+        updateNewProfileComponentsList(newProfileComponents);
+    }
+    
+    // Close modal
+    closeAddComponentWithSpecsModal();
+    
+    // Reset select based on context
+    if (isAddingComponentForEdit && editProfileComponentSelect) {
+        editProfileComponentSelect.value = '';
+        editProfileComponentSelect.style.display = 'none';
+    } else if (addProfileComponentSelect) {
+        addProfileComponentSelect.value = '';
+    }
+}
+
+// Function to add component to edit profile list
+function addComponentToEditProfile() {
+    isAddingComponentForEdit = true;
+    addComponentToProfile();
+}
+
+// Function to add component to new profile list (kept for backward compatibility)
+function addComponentToNewProfile() {
+    isAddingComponentForEdit = false;
+    addComponentToProfile();
+}
+
+// Function to remove component from new profile list
+function removeComponentFromNewProfile(index) {
+    newProfileComponents.splice(index, 1);
+    updateNewProfileComponentsList(newProfileComponents);
+}
+
+// Event handlers for profile modals
+if (closeAddProfileModalBtn) {
+    closeAddProfileModalBtn.addEventListener('click', closeAddProfileModal);
+}
+if (cancelAddProfileBtn) {
+    cancelAddProfileBtn.addEventListener('click', closeAddProfileModal);
+}
+if (addProfileModal) {
+    addProfileModal.addEventListener('click', (e) => {
+        if (e.target === addProfileModal) {
+            closeAddProfileModal();
+        }
+    });
+}
+
+if (addProfileForm) {
+    addProfileForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = profileNameInput ? profileNameInput.value.trim() : '';
+        
+        if (!name) {
+            alert('Please enter a name for the profile');
+            return;
+        }
+        
+        const submitBtn = addProfileForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn ? submitBtn.textContent : 'Create Profile';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Creating...';
+        }
+        
+        try {
+            // Create profile with all components (including specs)
+            const componentsCount = newProfileComponents.length;
+            const profile = await createProfile(name, newProfileComponents);
+            
+            // Reset form and components list
+            if (addProfileForm) {
+                addProfileForm.reset();
+            }
+            newProfileComponents = [];
+            updateNewProfileComponentsList([]);
+            
+            // Close modal
+            closeAddProfileModal();
+            
+            // Refresh profiles list
+            if (currentPage === 'profiles') {
+                await fetchProfiles();
+            }
+            
+            alert(`Profile "${name}" created successfully with ${componentsCount} component(s)!`);
+        } catch (error) {
+            alert(`Error creating profile: ${error.message}`);
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        }
+    });
+}
+
+// Event listener for add component button in new profile modal
+if (addComponentToNewProfileBtn) {
+    addComponentToNewProfileBtn.addEventListener('click', openAddComponentWithSpecsModal);
+}
+
+// Event handlers for add component with specs modal
+if (closeAddComponentWithSpecsModalBtn) {
+    closeAddComponentWithSpecsModalBtn.addEventListener('click', closeAddComponentWithSpecsModal);
+}
+if (cancelAddComponentWithSpecsBtn) {
+    cancelAddComponentWithSpecsBtn.addEventListener('click', closeAddComponentWithSpecsModal);
+}
+if (addComponentWithSpecsModal) {
+    addComponentWithSpecsModal.addEventListener('click', (e) => {
+        if (e.target === addComponentWithSpecsModal) {
+            closeAddComponentWithSpecsModal();
+        }
+    });
+}
+if (addComponentWithSpecsForm) {
+    addComponentWithSpecsForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (isAddingComponentForEdit) {
+            addComponentToEditProfile();
+        } else {
+            addComponentToNewProfile();
+        }
+    });
+}
+
+// Event handler for add disk button in spec modal
+if (addSpecDiskBtn) {
+    addSpecDiskBtn.addEventListener('click', () => {
+        if (!componentSpecDisksContainer) return;
+        const diskRows = componentSpecDisksContainer.querySelectorAll('.disk-input-row');
+        
+        if (diskRows.length >= 15) {
+            alert('Maximum 15 disks allowed');
+            return;
+        }
+        
+        const newRow = document.createElement('div');
+        newRow.className = 'disk-input-row';
+        newRow.style.cssText = 'display: flex; gap: 8px; margin-bottom: 8px; align-items: center;';
+        newRow.innerHTML = `
+            <input 
+                type="number" 
+                class="disk-size-input" 
+                placeholder="Size in GB"
+                min="1"
+                style="flex: 1; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);"
+            />
+            <button type="button" class="btn-remove-disk" style="background: #ef4444; color: white; border: none; border-radius: 4px; width: 36px; height: 36px; cursor: pointer; font-size: 18px; font-weight: bold; line-height: 1; transition: background 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">×</button>
+        `;
+        
+        componentSpecDisksContainer.appendChild(newRow);
+        updateSpecRemoveDiskButtons();
+    });
+}
+
+// Event handler for remove disk buttons in spec modal
+if (componentSpecDisksContainer) {
+    componentSpecDisksContainer.addEventListener('click', (e) => {
+        if (e.target.classList.contains('btn-remove-disk')) {
+            e.target.closest('.disk-input-row').remove();
+            updateSpecRemoveDiskButtons();
+        }
+    });
+}
+
+// Function to update the components list in add profile modal
+async function updateAddProfileComponentsList(profileId) {
+    const componentsList = document.getElementById('addProfileComponentsList');
+    if (!componentsList) return;
+    
+    try {
+        const apiUrl = getApiUrl(`/profiles/${profileId}`);
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}`);
+        }
+        
+        const profile = await response.json();
+        const components = extractProfileComponents(profile.profile || []);
+        
+        if (components.length === 0) {
+            componentsList.innerHTML = '<p style="color: var(--text-secondary);">No components added yet.</p>';
+        } else {
+            componentsList.innerHTML = components.map(comp => `
+                <div style="padding: 8px; background: var(--bg-secondary); border-radius: 4px; margin-bottom: 4px;">
+                    <strong>${escapeHtml(comp.uid)}</strong>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error updating components list:', error);
+    }
+}
+
+// Event handlers for add component to profile modal
+if (closeAddComponentToProfileModalBtn) {
+    closeAddComponentToProfileModalBtn.addEventListener('click', closeAddComponentToProfileModal);
+}
+if (cancelAddComponentToProfileBtn) {
+    cancelAddComponentToProfileBtn.addEventListener('click', closeAddComponentToProfileModal);
+}
+if (addComponentToProfileModal) {
+    addComponentToProfileModal.addEventListener('click', (e) => {
+        if (e.target === addComponentToProfileModal) {
+            closeAddComponentToProfileModal();
+        }
+    });
+}
+
+if (addComponentToProfileBtn) {
+    addComponentToProfileBtn.addEventListener('click', async () => {
+        const profileId = addProfileForm ? addProfileForm.dataset.profileId : null;
+        if (!profileId) {
+            alert('Please create the profile first');
+            return;
+        }
+        
+        // Fetch active components
+        try {
+            const activeComponents = await fetchActiveComponents();
+            
+            if (profileComponentUidSelect) {
+                profileComponentUidSelect.innerHTML = '<option value="">Select a component...</option>';
+                
+                const sortedComponents = activeComponents.sort((a, b) => {
+                    const nameA = (a.component_name || a.uid || '').toLowerCase();
+                    const nameB = (b.component_name || b.uid || '').toLowerCase();
+                    return nameA.localeCompare(nameB);
+                });
+                
+                sortedComponents.forEach(comp => {
+                    const option = document.createElement('option');
+                    option.value = comp.uid || comp.component_uid || '';
+                    option.textContent = comp.component_name || comp.uid || comp.component_uid || 'Unknown';
+                    profileComponentUidSelect.appendChild(option);
+                });
+            }
+            
+            // Show modal
+            if (addComponentToProfileModal) {
+                addComponentToProfileModal.classList.remove('hidden');
+            }
+        } catch (error) {
+            alert(`Error loading components: ${error.message}`);
+        }
+    });
+}
+
+
+// Update add component to profile form to handle both new and existing profiles
+if (addComponentToProfileForm) {
+    // Remove the old submit handler and add a new one that checks context
+    const existingHandler = addComponentToProfileForm.onsubmit;
+    addComponentToProfileForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const componentUid = profileComponentUidSelect ? profileComponentUidSelect.value : '';
+        let profileId = addComponentToProfileForm.dataset.profileId || (addProfileForm ? addProfileForm.dataset.profileId : null);
+        
+        if (!componentUid) {
+            alert('Please select a component');
+            return;
+        }
+        
+        if (!profileId) {
+            alert('Profile ID not found');
+            return;
+        }
+        
+        const submitBtn = addComponentToProfileForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn ? submitBtn.textContent : 'Add Component';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Adding...';
+        }
+        
+        try {
+            await addComponentToProfile(profileId, componentUid);
+            
+            // Close modal
+            closeAddComponentToProfileModal();
+            
+            // Reset form
+            if (addComponentToProfileForm) {
+                addComponentToProfileForm.reset();
+            }
+            
+            // Update add profile components list
+            await updateAddProfileComponentsList(profileId);
+            
+            // Re-enable submit button
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        } catch (error) {
+            alert(`Error adding component: ${error.message}`);
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        }
+    });
+}
+
+// Event handlers for edit profile modal
+if (closeEditProfileModalBtn) {
+    closeEditProfileModalBtn.addEventListener('click', closeEditProfileModal);
+}
+if (cancelEditProfileBtn) {
+    cancelEditProfileBtn.addEventListener('click', closeEditProfileModal);
+}
+if (editProfileModal) {
+    editProfileModal.addEventListener('click', (e) => {
+        if (e.target === editProfileModal) {
+            closeEditProfileModal();
+        }
+    });
+}
+
+// Handler for edit profile form submission (Save Changes)
+if (editProfileForm) {
+    editProfileForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const profileId = editProfileIdInput ? editProfileIdInput.value : null;
+        const profileName = editProfileNameInput ? editProfileNameInput.value.trim() : '';
+        
+        if (!profileId) {
+            alert('Profile ID not found');
+            return;
+        }
+        
+        if (!profileName) {
+            alert('Please enter a profile name');
+            return;
+        }
+        
+        const submitBtn = editProfileForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn ? submitBtn.textContent : 'Save Changes';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+        }
+        
+        try {
+            // Build components array in the same format as createProfile
+            const componentsArray = editProfileComponents.map(comp => {
+                const componentData = {
+                    component_uid: comp.component_uid
+                };
+                if (comp.vcpu) {
+                    componentData.vcpu = comp.vcpu;
+                }
+                if (comp.vmem) {
+                    componentData.vmem = comp.vmem;
+                }
+                if (comp.vdisks && Array.isArray(comp.vdisks) && comp.vdisks.length > 0) {
+                    componentData.vdisks = comp.vdisks;
+                }
+                return componentData;
+            });
+            
+            // Step 1: DELETE the profile
+            const deleteUrl = getApiUrl(`/profiles/${profileId}`);
+            const deleteResponse = await fetch(deleteUrl, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!deleteResponse.ok) {
+                const errorText = await deleteResponse.text();
+                throw new Error(`Error deleting profile: ${deleteResponse.status} - ${errorText}`);
+            }
+            
+            // Step 2: POST a new profile with the same name and all remaining components
+            const createUrl = getApiUrl('/profiles');
+            const createResponse = await fetch(createUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: profileName,
+                    profile: componentsArray
+                })
+            });
+            
+            if (!createResponse.ok) {
+                const errorText = await createResponse.text();
+                throw new Error(`Error creating profile: ${createResponse.status} - ${errorText}`);
+            }
+            
+            // Close modal and reload profiles
+            closeEditProfileModal();
+            await fetchProfiles();
+            
+            alert(`Profile "${profileName}" saved successfully!`);
+        } catch (error) {
+            alert(`Error saving profile: ${error.message}`);
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        }
+    });
+}
+
+// Event handler for add component button in edit profile modal
+if (addComponentToEditProfileBtn) {
+    addComponentToEditProfileBtn.addEventListener('click', async () => {
+        await openAddComponentForEditProfile();
+    });
+}
+
+// Auto-open specs modal when component is selected in edit mode
+if (editProfileComponentSelect) {
+    editProfileComponentSelect.addEventListener('change', () => {
+        if (isAddingComponentForEdit && editProfileComponentSelect.value) {
+            // Auto-open specs modal when component is selected in edit mode
+            openAddComponentWithSpecsModal();
+        }
+    });
+}
+
 
